@@ -4,10 +4,13 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
+# HuggingFace parquet file
 DATA_URL = "https://huggingface.co/datasets/dhruvtkpatel1/parquetfile/resolve/main/harvard_merged.parquet"
 
+# start duckdb
 con = duckdb.connect()
 
+# columns you want returned
 SELECT_COLUMNS = """
 "Entity Id",
 "Preferred Mail Name",
@@ -56,6 +59,9 @@ SELECT_COLUMNS = """
 """
 
 
+# ---------------------------------------------------
+# SEARCH ENDPOINT
+# ---------------------------------------------------
 @app.get("/search")
 def search(name: str = "", limit: int = 100):
 
@@ -75,9 +81,15 @@ def search(name: str = "", limit: int = 100):
         [f"%{name}%", f"%{name}%", f"%{name}%", limit]
     ).df()
 
+    # fix NaN -> JSON null
+    df = df.where(pd.notnull(df), None)
+
     return df.to_dict(orient="records")
 
 
+# ---------------------------------------------------
+# PROFILE ENDPOINT
+# ---------------------------------------------------
 @app.get("/profile")
 def profile(entity_id: str):
 
@@ -88,5 +100,7 @@ def profile(entity_id: str):
     """
 
     df = con.execute(query, [entity_id]).df()
+
+    df = df.where(pd.notnull(df), None)
 
     return df.to_dict(orient="records")
